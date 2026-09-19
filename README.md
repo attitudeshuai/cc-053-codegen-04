@@ -43,7 +43,30 @@ PUT  /api/v1/segments/{id}/annotation     提交转写（乐观锁 version）
 POST /api/v1/segments/{id}/arbitrate      仲裁裁决
 GET  /api/v1/exports                      创建导出任务（异步）
 GET  /api/v1/exports/{job_id}             导出进度与下载链接
+
+# 听辨实验
+POST /api/v1/listening/experiments                 按调查点挑条目、打乱并编排首批
+GET  /api/v1/listening/experiments                 实验列表
+GET  /api/v1/listening/experiments/{id}            实验详情（条目/听辨人/seed/游标）
+GET  /api/v1/listening/experiments/{id}/trials     试次编排明细（位置/状态/补位链）
+GET  /api/v1/listening/experiments/{id}/progress   缺谁、缺哪几条
+POST /api/v1/listening/experiments/{id}/batches    断点续发（从中断位置接着发）
+GET  /api/v1/listening/experiments/{id}/queue      听辨人拉自己的队列（X-Listener-ID）
+POST /api/v1/listening/experiments/{id}/responses  交作答（重复提交只留第一次）
+POST /api/v1/listening/experiments/{id}/void/{trialId}      作废试次（可顺带补位）
+POST /api/v1/listening/experiments/{id}/replace/{trialId}   对已作废试次单独补位
+POST /api/v1/listening/experiments/{id}/complete   收齐后冻结
 ```
+
+## 6.1 听辨实验编排与作答
+
+- **打乱**：条目按升序入列，用实验 `seed` 做确定性 Fisher-Yates；同一 (条目集, seed) 编排可复现、可审计。
+- **次序错开（cyclic Latin square）**：听辨人按 ID 升序得固定 rank，槽位 `s` 的试次发给 rank=k 时个人次序为 `(s−k) mod b`。同一条目在不同听辨人手里落在不同位置；听众多于槽位数时物理上无法完全错开，但不会"总在同一位置"。
+- **断点续发**：`current_position` 记录已编排到第几条；`POST .../batches` 只追加游标之后的试次，已发出/已收的试次永不重排。
+- **作答幂等**：`listening_responses (listener_id, trial_id)` 唯一，插入用 `ON CONFLICT DO NOTHING`；同一人对同一条重复提交返回第一次的作答（200 + merged 提示），不新增行；另支持 `client_token` 重试幂等。
+- **作废与补位**：作废只把试次与未答分发改 `voided`，旧位置号位只增不复用；补位换同条目在该调查点的另一段音频（已被本实验用过的音频段，包括已知损坏的，一律不再选），全局位置追加到尾部，个人号位精确填回各人原号位——原号位来自轮换本就因人错开。已被链条后续补位覆盖的听辨人不重复发放；替代音频耗尽时返回 `uncovered_listener_ids`。
+- **进度**：`GET .../progress` 按人聚合已发/已答/待答及待答条目，缺谁缺哪几条一眼可见；`complete` 在有待答或有"作废未补位"时返回 409，冻结后不再接受作答与续发。
+
 
 ## 7. 数据模型
 ```sql

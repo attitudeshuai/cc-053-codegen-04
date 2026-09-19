@@ -108,6 +108,58 @@ type ExportJob struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// ListeningExperiment 一批听辨实验：按调查点从词表挑出若干条目，
+// 以 seed 确定性打乱后分派给一组听辨人（entry_ids / listeners 落库即固定，可断点续发）。
+type ListeningExperiment struct {
+	ID               int64     `json:"id"`
+	Name             string    `json:"name"`
+	DialectPointCode string    `json:"dialect_point_code"`
+	WordlistID       int64     `json:"wordlist_id"`
+	Seed             int64     `json:"seed"`
+	EntryIDs         []int64   `json:"entry_ids"`
+	Listeners        []string  `json:"listeners"`
+	Status           string    `json:"status"` // draft | dispatched | closed
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+// ListeningTrial 一个试次：某轮次中某听辨人对某条目的一次作答机会。
+// position 是该听辨人在本轮序列中的先后（1 起），不同听辨人的次序按种子错开。
+type ListeningTrial struct {
+	ID           int64     `json:"id"`
+	ExperimentID int64     `json:"experiment_id"`
+	Round        int       `json:"round"`
+	Listener     string    `json:"listener"`
+	EntryID      int64     `json:"entry_id"`
+	Position     int       `json:"position"`
+	Status       string    `json:"status"` // pending | answered | voided
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// ListeningResponse 一条作答。同一听辨人对同一条目只保留第一次提交，
+// 重复提交在 (experiment_id, listener, entry_id) 唯一约束上并掉。
+type ListeningResponse struct {
+	ID           int64     `json:"id"`
+	ExperimentID int64     `json:"experiment_id"`
+	TrialID      int64     `json:"trial_id"`
+	Listener     string    `json:"listener"`
+	EntryID      int64     `json:"entry_id"`
+	Choice       string    `json:"choice"`
+	Note         string    `json:"note"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// ListenerIndex 返回听辨人在实验名单中的序号（编排次序的种子分量）；不在名单中返回 -1。
+func (e *ListeningExperiment) ListenerIndex(listener string) int {
+	for i, l := range e.Listeners {
+		if l == listener {
+			return i
+		}
+	}
+	return -1
+}
+
 // Pagination
 type Pagination struct {
 	Offset int `form:"offset" json:"offset"`

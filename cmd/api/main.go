@@ -55,6 +55,7 @@ func main() {
 	annotationRepo := repository.NewAnnotationRepo(db)
 	arbitrationRepo := repository.NewArbitrationRepo(db)
 	exportRepo := repository.NewExportRepo(db)
+	listeningRepo := repository.NewListeningRepo(db)
 
 	// Initialize MinIO service
 	minioSvc, err := services.NewMinIOService(cfg)
@@ -89,6 +90,7 @@ func main() {
 	annotationHandler := handlers.NewAnnotationHandler(annotationRepo, segmentRepo)
 	arbitrationHandler := handlers.NewArbitrationHandler(arbitrationRepo, annotationRepo, segmentRepo)
 	exportHandler := handlers.NewExportHandler(exportRepo, exportSvc)
+	listeningHandler := handlers.NewListeningHandler(listeningRepo, wordlistRepo)
 
 	// Setup Gin router
 	gin.SetMode(gin.ReleaseMode)
@@ -127,6 +129,17 @@ func main() {
 		v1.POST("/exports", exportHandler.Create)
 		v1.GET("/exports/:id", exportHandler.GetByID)
 		v1.GET("/exports", exportHandler.List)
+
+		v1.POST("/listening/experiments", listeningHandler.Create)
+		v1.GET("/listening/experiments", listeningHandler.List)
+		v1.GET("/listening/experiments/:id", listeningHandler.GetByID)
+		v1.POST("/listening/experiments/:id/dispatch", listeningHandler.Dispatch)
+		v1.GET("/listening/experiments/:id/trials", listeningHandler.ListTrials)
+		v1.POST("/listening/experiments/:id/responses", listeningHandler.SubmitResponses)
+		v1.GET("/listening/experiments/:id/responses", listeningHandler.ListResponses)
+		v1.GET("/listening/experiments/:id/progress", listeningHandler.Progress)
+		v1.POST("/listening/experiments/:id/void", listeningHandler.Void)
+		v1.POST("/listening/experiments/:id/redispatch", listeningHandler.Redispatch)
 	}
 
 	// Create HTTP server with proper timeouts for large file uploads

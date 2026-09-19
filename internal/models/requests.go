@@ -63,6 +63,48 @@ type CreateExportRequest struct {
 	Status     string `json:"status"`
 }
 
+// CreateListeningExperimentRequest 建一批听辨实验：
+// 按调查点从词表挑条目（显式 entry_ids 或按 pick_count 抽取），分派给 listeners。
+type CreateListeningExperimentRequest struct {
+	Name             string   `json:"name" binding:"required"`
+	DialectPointCode string   `json:"dialect_point_code" binding:"required"`
+	WordlistID       int64    `json:"wordlist_id" binding:"required"`
+	Listeners        []string `json:"listeners" binding:"required,min=1"`
+	EntryIDs         []int64  `json:"entry_ids"`  // 显式挑条目；为空时按 pick_count 从词表抽
+	PickCount        int      `json:"pick_count"` // 0 且 entry_ids 为空 = 用词表全部条目
+	Seed             int64    `json:"seed"`       // 0 = 服务端随机生成
+}
+
+// ListeningAnswerInput 一条作答；提交按 trial_id 定位试次。
+type ListeningAnswerInput struct {
+	TrialID int64  `json:"trial_id" binding:"required"`
+	Choice  string `json:"choice" binding:"required"`
+	Note    string `json:"note"`
+}
+
+// SubmitListeningResponsesRequest 听辨人批量交作答；重复提交并掉，只留第一次。
+type SubmitListeningResponsesRequest struct {
+	Answers []ListeningAnswerInput `json:"answers" binding:"required,min=1"`
+}
+
+// VoidListeningTrialsRequest 作废一批进行中的试次。
+type VoidListeningTrialsRequest struct {
+	TrialIDs []int64 `json:"trial_ids" binding:"required,min=1"`
+}
+
+// RedispatchListeningRequest 重排补位：把已作废且未补发的条目重新编进新一轮；
+// 可只补某个听辨人，也可额外指定补位条目。
+type RedispatchListeningRequest struct {
+	Listener string  `json:"listener"`   // 空 = 所有有缺口的听辨人
+	EntryIDs []int64 `json:"entry_ids"`  // 额外补位条目；空 = 只重排作废缺口
+}
+
+type ListeningTrialQuery struct {
+	Listener string `form:"listener"`
+	Status   string `form:"status"`
+	Pagination
+}
+
 type SegmentQuery struct {
 	TaskID int64  `form:"task_id"`
 	Status string `form:"status"`

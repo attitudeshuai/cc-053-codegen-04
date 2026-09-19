@@ -43,6 +43,15 @@ PUT  /api/v1/segments/{id}/annotation     提交转写（乐观锁 version）
 POST /api/v1/segments/{id}/arbitrate      仲裁裁决
 GET  /api/v1/exports                      创建导出任务（异步）
 GET  /api/v1/exports/{job_id}             导出进度与下载链接
+
+POST /api/v1/listening/experiments                  编排听辨实验（按调查点挑条目、定听辨人、定种子）
+POST /api/v1/listening/experiments/{id}/dispatch    下发首轮试次（幂等，断点续发不重来）
+GET  /api/v1/listening/experiments/{id}/trials      试次题单（?listener=&status=）
+POST /api/v1/listening/experiments/{id}/responses   交作答（X-Listener 头；同人同条只留第一次，重复并掉）
+GET  /api/v1/listening/experiments/{id}/responses   已收作答清单
+GET  /api/v1/listening/experiments/{id}/progress    进度：缺谁、缺哪几条
+POST /api/v1/listening/experiments/{id}/void        作废进行中的试次
+POST /api/v1/listening/experiments/{id}/redispatch  重排补位：作废缺口+补位条目编进新一轮
 ```
 
 ## 7. 数据模型
@@ -55,6 +64,10 @@ segment(id, recording_id, entry_id, start_ms, end_ms, object_key, snr_db, status
 annotation(id, segment_id, annotator, ipa, tone, note, decision /* pending|accept|reject|arbitrated */, version)
 arbitration(id, segment_id, winner_annotation_id, arbiter, reason, created_at)
 export_job(id, filter jsonb, status, progress, output_key, created_at)
+listening_experiment(id, name, dialect_point_code, wordlist_id, seed, entry_ids jsonb, listeners jsonb, status)
+listening_trial(id, experiment_id, round, listener, entry_id, position, status /* pending|answered|voided */)
+listening_response(id, experiment_id, trial_id, listener, entry_id, choice, note, created_at)
+  -- 唯一约束：trial(experiment_id, round, listener, entry_id)；response(experiment_id, listener, entry_id)
 ```
 
 ## 8. 关键实现点

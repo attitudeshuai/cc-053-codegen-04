@@ -116,3 +116,45 @@ CREATE INDEX IF NOT EXISTS idx_segments_recording ON segments(recording_id);
 CREATE INDEX IF NOT EXISTS idx_segments_status ON segments(status);
 CREATE INDEX IF NOT EXISTS idx_annotations_segment ON annotations(segment_id);
 CREATE INDEX IF NOT EXISTS idx_arbitrations_segment ON arbitrations(segment_id);
+-- 听辨实验：编排与作答
+CREATE TABLE IF NOT EXISTS listening_experiments (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    dialect_point_code VARCHAR(50) NOT NULL,
+    wordlist_id BIGINT NOT NULL REFERENCES wordlists(id),
+    seed BIGINT NOT NULL DEFAULT 0,
+    entry_ids JSONB NOT NULL DEFAULT '[]',
+    listeners JSONB NOT NULL DEFAULT '[]',
+    status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','dispatched','closed')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS listening_trials (
+    id BIGSERIAL PRIMARY KEY,
+    experiment_id BIGINT NOT NULL REFERENCES listening_experiments(id),
+    round INT NOT NULL DEFAULT 1,
+    listener VARCHAR(200) NOT NULL,
+    entry_id BIGINT NOT NULL,
+    position INT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','answered','voided')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (experiment_id, round, listener, entry_id)
+);
+
+CREATE TABLE IF NOT EXISTS listening_responses (
+    id BIGSERIAL PRIMARY KEY,
+    experiment_id BIGINT NOT NULL REFERENCES listening_experiments(id),
+    trial_id BIGINT NOT NULL REFERENCES listening_trials(id),
+    listener VARCHAR(200) NOT NULL,
+    entry_id BIGINT NOT NULL,
+    choice VARCHAR(200) NOT NULL,
+    note TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (experiment_id, listener, entry_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_listening_trials_experiment ON listening_trials(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_listening_trials_listener ON listening_trials(experiment_id, listener);
+CREATE INDEX IF NOT EXISTS idx_listening_responses_experiment ON listening_responses(experiment_id);
